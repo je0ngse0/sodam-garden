@@ -86,3 +86,44 @@
 }
 .garden-controls .seed { width: auto; flex: 0 0 auto; white-space: nowrap; }
 .garden-controls .seed strong { white-space: nowrap; }
+
+/* Garden studio, walking, and bouquet picking. */
+.garden-controls { flex-wrap: wrap; gap: 9px; }
+.garden-controls > .tool { flex: 0 0 auto; flex-direction: row; padding: 10px 12px; gap: 7px; }
+.garden-controls > .tool span { height: 22px; font-size: 21px; }
+.garden-controls .seeds { flex: 0 0 auto; }
+.garden-controls .tools { flex: 0 0 260px; }
+.scene { outline-offset: -4px; }
+.scene.walk-mode { cursor: crosshair; }
+.harvest-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 20px; background: #f4ebe2; border-bottom: 1px solid #e3d5c4; font-size: 12px; }
+.harvest-bar[hidden] { display: none; }
+.harvest-bar > span { flex: 1; min-width: 210px; color: #86725e; }
+.harvest-bar .primary { width: auto; margin: 0; padding: 9px 16px; background: #a27977; }
+.harvest-bar .primary:disabled { opacity: .45; cursor: default; }
+.plot.harvest-selected { background: #f4d8ce25; border: 2px dashed #fff1d9; box-shadow: inset 0 0 20px #ffe4c52b; }
+.plot.harvest-selected::after { content: '✓'; position: absolute; right: 8%; top: 6%; width: 23px; height: 23px; display: grid; place-items: center; border-radius: 50%; background: #fcf2dc; color: #936f69; font-size: 13px; }
+#bench-hit { position: absolute; left: 76%; top: 20%; width: 14%; height: 12%; background: transparent; border: 0; border-radius: 10px; }
+#bench-hit span { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; border-radius: 12px; padding: 4px 10px; background: #fcf4ddbb; color: #796b53; }
+#bench-hit:hover { background: #fff1cb18; }
+#bench-hit:focus-visible { outline: 2px dashed #fff3cf; }
+.character-strip { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 5px 8px; }
+.character-strip b { display: block; font-size: 13px; font-weight: 500; }
+.character-strip small { display: block; margin-top: 5px; color: #929780; font-size: 11px; }
+.character-strip > div { display: flex; gap: 7px; }
+.bouquet-panel { width: 100%; }
+.bouquet-gallery { display: flex; gap: 16px; overflow-x: auto; padding: 8px 0; }
+.bouquet-empty { width: 100%; padding: 30px 15px; border: 1px dashed #dfddcc; border-radius: 12px; text-align: center; font-size: 12px; color: #99957f; }
+.bouquet-card { flex: 0 0 172px; padding: 5px 15px 17px; border-radius: 14px; background: linear-gradient(150deg,#f7f2e9,#eee8dc); text-align: center; border: 1px solid #e7dfd1; }
+.bouquet-card > svg { width: 140px; height: 145px; }
+.bouquet-card h3 { font-family: 'Gowun Batang',serif; font-size: 13px; margin: 0 0 7px; }
+.bouquet-card p { font-size: 9px; color: #8a927c; margin: 0 0 7px; line-height: 1.6; }
+.bouquet-card small { font-size: 9px; color: #aaa48e; }
+@media(max-width:760px) {
+  .garden-controls .tools { flex: 1 0 100%; }
+  .garden-controls > .tool { flex: 1; justify-content: center; padding: 7px; }
+  .garden-controls .seeds { flex: 1 0 100%; }
+  .character-strip { flex-wrap: wrap; }
+  .harvest-bar { padding: 10px; gap: 8px; }
+  .harvest-bar > span { flex: 1 0 100%; font-size: 11px; }
+}
+.cat-hit { width: 12.4%; height: 13%; }

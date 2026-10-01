@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { freshState, restoreState, plant, water, progress, move, discover, feedFish, feedCooldown, PLOT_COUNT } from '../src/model.js';
+import { freshState, restoreState, plant, water, progress, move, discover, feedFish, feedCooldown, PLOT_COUNT, makeBouquet } from '../src/model.js';
 test('a planted flower requires water and blooms after its duration',()=>{const s=freshState();assert.equal(plant(s,0,'daisy'),true);assert.equal(progress(s.plots[0],999999),0);assert.equal(water(s,0,1000),true);assert.equal(progress(s.plots[0],16000),.5);assert.equal(progress(s.plots[0],31000),1);assert.equal(water(s,0,99999),false);assert.equal(s.plots[0].wateredAt,1000);});
 test('cannot overwrite flowers or plant invalid species/positions',()=>{const s=freshState();plant(s,0,'tulip');assert.equal(plant(s,0,'daisy'),false);assert.equal(plant(s,-1,'daisy'),false);assert.equal(plant(s,PLOT_COUNT,'daisy'),false);assert.equal(plant(s,1,'unknown'),false);assert.equal(water(s,1),false);});
 test('moving preserves growth and refuses occupied destinations',()=>{const s=freshState();plant(s,0,'daisy');plant(s,1,'tulip');water(s,0,500);assert.equal(move(s,0,1),false);assert.equal(move(s,0,11),true);assert.equal(s.plots[0],null);assert.equal(s.plots[11].wateredAt,500);assert.equal(move(s,11,PLOT_COUNT),false);});
@@ -10,7 +10,7 @@ test('corrupt and incompatible saves recover safely',()=>{assert.deepEqual(resto
 test('legacy 12-plot gardens migrate without losing flowers, growth, or cats', () => {
   const old = {version:1, plots:Array.from({length:12}, (_,i)=>({flower:['daisy','tulip','lavender'][i%3], wateredAt:1000+i})), discovered:['cream','peach','night'], pets:19};
   const migrated=restoreState(JSON.stringify(old),100000);
-  assert.equal(migrated.version,2);
+  assert.equal(migrated.version,3);
   assert.equal(migrated.plots.length,24);
   old.plots.forEach((p,i)=>assert.deepEqual(migrated.plots[Math.floor(i/4)*6+i%4],p));
   assert.equal(migrated.plots.filter(Boolean).length,12);
@@ -37,4 +37,36 @@ test('feeding persists and cannot be repeated during a meal, even after reload',
 test('invalid pond values are sanitized', () => {
   const s=freshState();s.pond={feedings:-4,lastFedAt:'wrong'};
   assert.deepEqual(restoreState(JSON.stringify(s)).pond,{feedings:0,lastFedAt:null});
+});
+
+test('bouquets harvest only chosen mature plots and survive a reload', () => {
+  const s=freshState();
+  [0,1,2,3].forEach(i=>{plant(s,i,'daisy');water(s,i,1000);});
+  s.discovered=['cream'];
+  const bouquet=makeBouquet(s,[0,2,3],31000);
+  assert.deepEqual(bouquet.flowers,['daisy','daisy','daisy']);
+  assert.equal(s.plots[0],null);assert.equal(s.plots[2],null);assert.equal(s.plots[3],null);
+  assert.equal(s.plots[1].flower,'daisy');
+  assert.deepEqual(s.discovered,['cream']);
+  assert.equal(plant(s,0,'tulip'),true);
+  assert.deepEqual(restoreState(JSON.stringify(s),32000),s);
+});
+
+test('invalid or unripe bouquet selections never partially harvest flowers', () => {
+  const s=freshState();[0,1,2,3].forEach(i=>{plant(s,i,'daisy');water(s,i,1000);});
+  s.plots[3].wateredAt=30000;
+  const original=JSON.stringify(s);
+  for (const indices of [[0,1],[0,0,1],[0,1,3],[0,1,8],[0,1,24],[-1,0,1]]) {
+    assert.equal(makeBouquet(s,indices,31000),null);
+    assert.equal(JSON.stringify(s),original);
+  }
+  assert.equal(makeBouquet(s,[0,1,2],15000),null);
+  assert.equal(JSON.stringify(s),original);
+});
+
+test('version 2 saves retain pond and pets while adding bouquet and character state', () => {
+  const s=freshState();s.version=2;delete s.bouquets;delete s.character;s.pond={feedings:4,lastFedAt:100};s.pets=8;
+  const loaded=restoreState(JSON.stringify(s),200);
+  assert.equal(loaded.version,3);assert.equal(loaded.pets,8);assert.deepEqual(loaded.pond,s.pond);
+  assert.deepEqual(loaded.bouquets,[]);assert.equal(loaded.character.sitting,false);
 });

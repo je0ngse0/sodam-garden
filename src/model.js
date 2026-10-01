@@ -1,4 +1,5 @@
 import { PLOT_COUNT } from './layout.js';
+import { START, BENCH, isWalkable } from './walking.js';
 export { PLOT_COUNT } from './layout.js';
 export const FEED_INTERVAL = 10000;
 export const FLOWERS = [
@@ -11,11 +12,11 @@ export const CATS = [
   { id: 'peach', name: '모모', flower: 'tulip', color: '#cb9371', description: '꽃향기를 따라 찾아왔어요' },
   { id: 'night', name: '밤이', flower: 'lavender', color: '#777580', description: '조용히 곁을 지켜주는 친구' },
 ];
-export const freshState = () => ({ version: 2, plots: Array(PLOT_COUNT).fill(null), discovered: [], pets: 0, pond: { feedings: 0, lastFedAt: null } });
+export const freshState = () => ({ version: 3, plots: Array(PLOT_COUNT).fill(null), discovered: [], pets: 0, pond: { feedings: 0, lastFedAt: null }, bouquets: [], character: { ...START, sitting: false } });
 export function restoreState(raw, now = Date.now()) {
   try {
     const value = JSON.parse(raw);
-    if (![1, 2].includes(value?.version) || !Array.isArray(value.plots) || value.plots.length !== (value.version === 1 ? 12 : PLOT_COUNT)) return freshState();
+    if (![1, 2, 3].includes(value?.version) || !Array.isArray(value.plots) || value.plots.length !== (value.version === 1 ? 12 : PLOT_COUNT)) return freshState();
     const plots = Array(PLOT_COUNT).fill(null);
     value.plots.forEach((p, i) => {
       // Preserve the old four-column arrangement in the enlarged six-column bed.
@@ -26,7 +27,7 @@ export function restoreState(raw, now = Date.now()) {
       } : null;
     });
     return {
-      version: 2,
+      version: 3,
       plots,
       discovered: CATS.filter(c => Array.isArray(value.discovered) && value.discovered.includes(c.id)).map(c => c.id),
       pets: Number.isSafeInteger(value.pets) && value.pets >= 0 ? value.pets : 0,
@@ -34,6 +35,8 @@ export function restoreState(raw, now = Date.now()) {
         feedings: Number.isSafeInteger(value.pond?.feedings) && value.pond.feedings >= 0 ? value.pond.feedings : 0,
         lastFedAt: Number.isFinite(value.pond?.lastFedAt) && value.pond.lastFedAt >= 0 ? Math.min(value.pond.lastFedAt, now) : null,
       },
+      bouquets: Array.isArray(value.bouquets) ? value.bouquets.filter(b => b && Number.isFinite(b.createdAt) && b.createdAt >= 0 && Array.isArray(b.flowers) && b.flowers.length >= 3 && b.flowers.length <= 9 && b.flowers.every(id => FLOWERS.some(f => f.id === id))).map(b => ({ createdAt: b.createdAt, flowers: [...b.flowers] })) : [],
+      character: value.character?.sitting === true ? { ...BENCH, sitting: true } : isWalkable(value.character?.x, value.character?.y) ? { x: value.character.x, y: value.character.y, sitting: false } : { ...START, sitting: false },
     };
   } catch { return freshState(); }
 }
@@ -74,4 +77,14 @@ export function feedFish(state, now = Date.now()) {
   state.pond.lastFedAt = now;
   state.pond.feedings += 1;
   return true;
+}
+
+export function makeBouquet(state, indices, now = Date.now()) {
+  if (!Array.isArray(indices) || indices.length < 3 || indices.length > 9 || new Set(indices).size !== indices.length) return null;
+  if (!indices.every(i => Number.isInteger(i) && i >= 0 && i < PLOT_COUNT && state.plots[i] && progress(state.plots[i], now) === 1)) return null;
+  const bouquet = { createdAt: now, flowers: indices.map(i => state.plots[i].flower) };
+  // Validate the whole selection first, then harvest only the selected plots.
+  state.bouquets.push(bouquet);
+  indices.forEach(i => { state.plots[i] = null; });
+  return bouquet;
 }
