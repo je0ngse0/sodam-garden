@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e7">
+  <meta name="description" content="씨앗을 심고, 꽃을 돌보고, 고양이를 만나는 작은 힐링 게임 소담정원.">
+  <title>소담정원 · 느리게 자라는 행복</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="소담정원 홈"><span class="brand-mark">✿</span><span>소담정원<small>A LITTLE GARDEN OF YOUR OWN</small></span></a>
+      <div class="header-actions"><span id="save-status" class="save-status">내 기기에 자동 저장</span><button id="sound" class="icon-button" aria-pressed="false">♫ 소리 켜기</button><button id="help" class="icon-button" aria-label="게임 도움말">?</button></div>
+    </header>
+    <section class="intro"><div><p class="eyebrow">SLOW DAYS, SMALL JOYS</p><h1>오늘도, 조금씩 자라요.</h1><p>서두르지 않아도 괜찮아요. 여기는 당신의 작은 정원이니까요.</p></div><div class="weather"><span>☀</span><div>햇살 좋은 날<small>꽃을 돌보기 좋은 순간</small></div></div></section>
+    <div class="layout">
+      <section class="garden-card" aria-label="나의 정원">
+        <div class="garden-top"><span><i class="live-dot"></i> 나의 작은 정원</span><span id="bloom-count">피어난 꽃 0 / 12</span></div>
+        <div class="scene" id="scene"><canvas id="garden" aria-hidden="true"></canvas><div id="plots" class="plots" aria-label="꽃밭 12칸"></div><button id="cat" class="cat-hit" aria-label="방문한 고양이 쓰다듬기" hidden></button><div class="scene-note"><span>✧</span> 작은 돌봄이 모여, 정원이 돼요</div></div>
+        <div class="garden-bottom"><span id="hint">씨앗을 고르고 빈 흙을 눌러 심어보세요.</span><span class="key-hint">1 씨앗 · 2 물 · 3 옮기기</span></div>
+      </section>
+      <aside class="sidebar">
+        <section class="panel tools-panel"><p class="eyebrow">GARDEN TOOLS</p><h2>정원사의 작은 도구함</h2><div class="tools" role="group" aria-label="정원 도구"><button data-tool="seed" class="tool active" aria-pressed="true"><span>♧</span>씨앗 심기</button><button data-tool="water" class="tool" aria-pressed="false"><span>♧</span>물 주기</button><button data-tool="remove" class="tool" aria-pressed="false"><span>♧</span>옮기기</button></div><div class="divider"></div><div class="section-label">어떤 꽃을 심어볼까요?<span>씨앗은 무제한이에요</span></div><div id="seeds" class="seeds"></div><p class="gentle-note">물은 한 번이면 충분해요.<br>잠시 다른 곳을 보아도 꽃은 자라요.</p></section>
+        <section class="panel visitors-panel"><div class="section-heading"><div><p class="eyebrow">LITTLE VISITORS</p><h2>반가운 발걸음</h2></div><span id="cat-count" class="badge">0 / 3</span></div><p class="panel-desc" id="visitor-hint">꽃이 피면 친구가 찾아올 거예요.</p><div id="visitors" class="visitors"></div></section>
+      </aside>
+    </div>
+    <footer><span>Made for a softer day.</span><span>실패도, 시드는 꽃도 없는 정원 <span class="footer-flower">✿</span></span></footer>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <dialog id="help-dialog"><button id="close-help" class="close" aria-label="도움말 닫기">×</button><p class="eyebrow">WELCOME TO SODAM</p><h2>당신의 속도로 가꾸세요.</h2><p>① 꽃을 고르고 빈 꽃밭을 눌러 씨앗을 심어요.</p><p>② <b>물 주기</b>를 고른 뒤 씨앗에 물을 주세요.</p><p>③ 30~50초 후 꽃이 활짝 피어요. 창을 닫아도 자라요.</p><p>④ 데이지, 튤립, 라벤더가 피면 서로 다른 고양이가 찾아와요. 정원에 있는 고양이를 눌러 쓰다듬어 주세요.</p><p>⑤ <b>옮기기</b>로 꽃을 선택하고 빈칸을 누르면 위치를 바꿀 수 있어요.</p><small>정원은 이 브라우저에 저장돼요. 사이트 데이터를 지우거나 다른 기기로 바꾸면 이어지지 않아요.</small><button id="start-garden" class="primary">정원으로 돌아가기</button></dialog>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
