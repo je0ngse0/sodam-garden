@@ -24,9 +24,17 @@ function selectTool(next) {
 }
 FLOWERS.forEach(f => {
   const b = document.createElement('button');b.className = 'seed';b.dataset.seed = f.id;b.setAttribute('aria-label', `${f.name} 씨앗 선택, 물을 주면 ${f.seconds}초 후 개화`);
-  b.innerHTML = `<span class="seed-icon" style="color:${f.id === 'daisy' ? '#fffdf1' : f.color}">${f.id === 'tulip' ? '♜' : f.id === 'lavender' ? '❧' : '✿'}</span><span><strong>${f.name}</strong><small>${f.description}</small></span><span class="check"></span>`;
+  b.innerHTML = `<span class="seed-icon" style="color:${f.id === 'daisy' ? '#fffdf1' : f.color}">${seedPortrait(f)}</span><span><strong>${f.name}</strong><small>${f.description}</small></span><span class="check"></span>`;
   b.addEventListener('click', () => { seed = f.id;selectTool('seed');renderSeeds(); });$('#seeds').append(b);
 });
+function seedPortrait(f) {
+  const petals = f.id === 'daisy'
+    ? '<g fill="#fffdf1">' + Array.from({length:8}, (_,i) => `<ellipse cx="20" cy="10" rx="3.3" ry="7" transform="rotate(${i*45} 20 16)"/>`).join('') + '</g><circle cx="20" cy="16" r="4" fill="#d9ae47"/>'
+    : f.id === 'tulip'
+    ? '<path d="M10 10l6 4 4-7 4 7 6-4v10c0 13-20 13-20 0Z" fill="#dd8e83"/>'
+    : '<g fill="#a499c1">' + Array.from({length:5}, (_,i) => `<ellipse cx="17" cy="${10+i*4}" rx="4" ry="3"/><ellipse cx="23" cy="${8+i*4}" rx="4" ry="3"/>`).join('') + '</g>';
+  return `<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><path d="M20 36V17m0 14-8-5m8 8 8-5" stroke="#809465" stroke-width="2" fill="none"/>${petals}</svg>`;
+}
 function renderSeeds() { document.querySelectorAll('[data-seed]').forEach(b => {const active=b.dataset.seed===seed;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);b.querySelector('.check').textContent=active?'✓':'';}); }
 const plotButtons = Array.from({length:12}, (_,i) => {
   const b=document.createElement('button');b.className='plot';b.dataset.plot=i;b.innerHTML='<span class="plot-label"></span>';b.addEventListener('click',()=>act(i));$('#plots').append(b);return b;
@@ -45,7 +53,7 @@ function act(index) {
 function splash(index) { if(reducedMotion.matches)return;const col=index%4,row=Math.floor(index/4);for(let i=0;i<14;i++)particles.push({x:249+col*139,y:260+row*107,vx:(Math.random()-.5)*65,vy:-35-Math.random()*45,time:performance.now()}); }
 function renderCats() {
   $('#visitors').replaceChildren();
-  CATS.forEach(c=>{const known=state.discovered.includes(c.id),b=document.createElement('button');b.className='visitor'+(known?' known':'');b.innerHTML=`<span class="portrait">${known?catPortrait(c):'?'}</span><span>${known?c.name:'아직 낯선 친구'}</span>`;b.setAttribute('aria-label',known?`${c.name} 정원에 부르기`:`${FLOWERS.find(f=>f.id===c.flower).name}를 피우면 만날 수 있어요`);b.addEventListener('click',()=>{if(known){currentCat=c.id;toast(`${c.name} · ${c.description}`);updateCat();}else toast(`${FLOWERS.find(f=>f.id===c.flower).name}가 피면 찾아올 거예요.`);});$('#visitors').append(b);});
+  CATS.forEach(c=>{const known=state.discovered.includes(c.id),b=document.createElement('button');b.className='visitor'+(known?' known':'');b.innerHTML=`<span class="portrait">${known?catPortrait(c):'?'}</span><span>${known?c.name:'아직 낯선 친구'}</span>`;b.setAttribute('aria-label',known?`${c.name} 정원에 부르기`:`${FLOWERS.find(f=>f.id===c.flower).name} 꽃이 피면 만날 수 있어요`);b.addEventListener('click',()=>{if(known){currentCat=c.id;toast(`${c.name} · ${c.description}`);updateCat();}else toast(`${FLOWERS.find(f=>f.id===c.flower).name} 꽃이 피면 찾아올 거예요.`);});$('#visitors').append(b);});
   $('#cat-count').textContent=`${state.discovered.length} / 3`;
   $('#visitor-hint').textContent=state.discovered.length?'친구를 눌러 정원으로 불러보세요.':'꽃이 피면 친구가 찾아올 거예요.';
   updateCat();
