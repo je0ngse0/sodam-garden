@@ -1,10 +1,14 @@
-import { FLOWERS, CATS, freshState, restoreState, progress, plant, water, move, discover } from './model.js';
+import { FLOWERS, CATS, freshState, restoreState, progress, plant, water, move, discover, PLOT_COUNT, feedFish, feedCooldown } from './model.js';
 import { createPainter } from './art.js';
+import { WORLD, BED, plotPosition, catPose } from './layout.js';
 const $ = s => document.querySelector(s);
 const KEY = 'sodam-garden-v1';
 let state = freshState();
 try { state = restoreState(localStorage.getItem(KEY)); } catch { $('#save-status').textContent = '저장할 수 없는 브라우저'; }
-let tool = 'seed', seed = 'daisy', moving = null, currentCat = state.discovered.at(-1), petUntil = 0;
+let tool = 'seed', seed = 'daisy', moving = null;
+const petStates = new Map();
+const catButtons = new Map();
+let lastCatPoses = new Map();
 let toastTimer, particles = [], lastPaint = 0;
 const paint = createPainter($('#garden'));
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -36,13 +40,13 @@ function seedPortrait(f) {
   return `<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><path d="M20 36V17m0 14-8-5m8 8 8-5" stroke="#809465" stroke-width="2" fill="none"/>${petals}</svg>`;
 }
 function renderSeeds() { document.querySelectorAll('[data-seed]').forEach(b => {const active=b.dataset.seed===seed;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);b.querySelector('.check').textContent=active?'✓':'';}); }
-const plotButtons = Array.from({length:12}, (_,i) => {
+const plotButtons = Array.from({length:PLOT_COUNT}, (_,i) => {
   const b=document.createElement('button');b.className='plot';b.dataset.plot=i;b.innerHTML='<span class="plot-label"></span>';b.addEventListener('click',()=>act(i));$('#plots').append(b);return b;
 });
 function renderPlots() {
   let blooms=0;
   plotButtons.forEach((b,i)=>{const p=state.plots[i];let label='빈 꽃밭';if(p){const f=FLOWERS.find(f=>f.id===p.flower),g=progress(p);if(g===1)blooms++;label=`${f.name} · ${p.wateredAt===null?'물을 주세요':g===1?'활짝 피었어요':Math.ceil(f.seconds*(1-g))+'초 후 개화'}`;}b.setAttribute('aria-label',`${i+1}번 ${label}`);b.querySelector('span').textContent=label;b.classList.toggle('selected',moving===i);});
-  $('#bloom-count').textContent=`피어난 꽃 ${blooms} / 12`;
+  $('#bloom-count').textContent=`피어난 꽃 ${blooms} / ${PLOT_COUNT}`;
 }
 function act(index) {
   if(tool==='seed') {if(plant(state,index,seed)){toast(`${FLOWERS.find(f=>f.id===seed).name} 씨앗을 심었어요. 물을 주면 자라나요.`);chime(392);}else toast('이미 꽃이 있는 자리예요. 빈 흙에 심어주세요.');}
@@ -50,17 +54,59 @@ function act(index) {
   if(tool==='remove') {if(moving===null){if(!state.plots[index]){toast('먼저 옮길 꽃을 골라주세요.');return;}moving=index;$('#hint').textContent='이 꽃을 어디로 옮길까요? 빈 흙을 눌러주세요.';renderPlots();return;}if(moving===index){moving=null;$('#hint').textContent='옮길 꽃을 고른 다음, 빈 흙을 눌러주세요.';renderPlots();return;}if(move(state,moving,index)){moving=null;toast('새로운 자리에 포근히 옮겼어요.');$('#hint').textContent='옮길 꽃을 고른 다음, 빈 흙을 눌러주세요.';}else toast('빈 흙을 골라주세요.');}
   save();renderPlots();
 }
-function splash(index) { if(reducedMotion.matches)return;const col=index%4,row=Math.floor(index/4);for(let i=0;i<14;i++)particles.push({x:249+col*139,y:260+row*107,vx:(Math.random()-.5)*65,vy:-35-Math.random()*45,time:performance.now()}); }
+function splash(index) { if(reducedMotion.matches)return;const pos=plotPosition(index);for(let i=0;i<14;i++)particles.push({x:pos.x,y:pos.y-20,vx:(Math.random()-.5)*65,vy:-35-Math.random()*45,time:performance.now()}); }
 function renderCats() {
   $('#visitors').replaceChildren();
-  CATS.forEach(c=>{const known=state.discovered.includes(c.id),b=document.createElement('button');b.className='visitor'+(known?' known':'');b.innerHTML=`<span class="portrait">${known?catPortrait(c):'?'}</span><span>${known?c.name:'아직 낯선 친구'}</span>`;b.setAttribute('aria-label',known?`${c.name} 정원에 부르기`:`${FLOWERS.find(f=>f.id===c.flower).name} 꽃이 피면 만날 수 있어요`);b.addEventListener('click',()=>{if(known){currentCat=c.id;toast(`${c.name} · ${c.description}`);updateCat();}else toast(`${FLOWERS.find(f=>f.id===c.flower).name} 꽃이 피면 찾아올 거예요.`);});$('#visitors').append(b);});
-  $('#cat-count').textContent=`${state.discovered.length} / 3`;
-  $('#visitor-hint').textContent=state.discovered.length?'친구를 눌러 정원으로 불러보세요.':'꽃이 피면 친구가 찾아올 거예요.';
-  updateCat();
+  CATS.forEach(c => {
+    const known = state.discovered.includes(c.id);
+    const b = document.createElement('button');
+    b.className = 'visitor' + (known ? ' known' : '');
+    b.innerHTML = `<span class="portrait">${known ? catPortrait(c) : '?'}</span><span>${known ? c.name : '아직 낯선 친구'}</span>`;
+    b.setAttribute('aria-label', known ? `${c.name} 쓰다듬기` : `${FLOWERS.find(f => f.id === c.flower).name} 꽃이 피면 만날 수 있어요`);
+    b.addEventListener('click', () => known ? petCat(c.id) : toast(`${FLOWERS.find(f => f.id === c.flower).name} 꽃이 피면 찾아올 거예요.`));
+    $('#visitors').append(b);
+    if (known && !catButtons.has(c.id)) {
+      const hit = document.createElement('button');
+      hit.className = 'cat-hit';
+      hit.dataset.cat = c.id;
+      hit.setAttribute('aria-label', `정원의 ${c.name} 쓰다듬기`);
+      hit.addEventListener('click', () => petCat(c.id));
+      $('#cats').append(hit);
+      catButtons.set(c.id, hit);
+    }
+  });
+  $('#cat-count').textContent = `${state.discovered.length} / 3`;
+  $('#visitor-hint').textContent = state.discovered.length ? `${state.discovered.length}마리가 함께 쉬고 있어요. 살짝 쓰다듬어 주세요.` : '꽃이 피면 친구들이 함께 찾아와요.';
 }
+function petCat(id) {
+  const now = performance.now();
+  if (now < (petStates.get(id)?.until || 0)) return;
+  petStates.set(id, { until: now + 2600, pose: lastCatPoses.get(id) || catPose(id, now) });
+  state.pets++;
+  save();
+  toast(`${CATS.find(c => c.id === id).name}가 가르릉… 기분 좋은 소리를 내요.`);
+  chime(329.63);
+}
+function renderPond() {
+  const remaining = Math.ceil(feedCooldown(state) / 1000);
+  const label = remaining ? `오물오물 먹는 중 · ${remaining}초` : '물고기 밥 주기';
+  $('#feed-fish').textContent = label;
+  $('#feed-fish').disabled = remaining > 0;
+  $('#pond-hit').setAttribute('aria-label', label);
+  $('#pond-hit').setAttribute('aria-disabled', remaining > 0);
+  $('#feed-count').textContent = `밥 준 횟수 ${state.pond.feedings}번`;
+  $('#pond-status').textContent = remaining ? '물고기들이 모여서 밥을 먹고 있어요.' : '연못을 누르면 물고기들이 반겨줄 거예요.';
+}
+function feed() {
+  if (!feedFish(state)) { toast('아직 맛있게 먹는 중이에요. 잠시만 기다려주세요.'); return; }
+  save();
+  renderPond();
+  toast('톡톡, 밥을 뿌렸어요. 물고기들이 모여들어요!');
+  chime(523.25);
+}
+$('#feed-fish').addEventListener('click', feed);
+$('#pond-hit').addEventListener('click', feed);
 function catPortrait(c) { return `<svg viewBox="0 0 50 50" width="39" height="39" aria-hidden="true"><path d="M8 25 7 8 21 17h8L43 8l-1 18" fill="${c.color}"/><ellipse cx="25" cy="29" rx="20" ry="17" fill="${c.color}"/><path d="m13 28 4 2 4-2m8 0 4 2 4-2" fill="none" stroke="#66564d" stroke-width="1.5" stroke-linecap="round"/><path d="m23 34 2 2 2-2" fill="none" stroke="#ad7770" stroke-width="2"/></svg>`; }
-function updateCat() {$('#cat').hidden=!currentCat;if(currentCat)$('#cat').setAttribute('aria-label',`${CATS.find(c=>c.id===currentCat).name} 쓰다듬기`);}
-$('#cat').addEventListener('click',()=>{if(performance.now()<petUntil)return;petUntil=performance.now()+2200;state.pets++;save();toast(`${CATS.find(c=>c.id===currentCat).name}가 가르릉… 기분 좋은 소리를 내요.`);chime(329.63);});
 let audio, master, soundOn=false, soundTimer;
 function chime(frequency) { if(!soundOn||!audio||audio.state!=='running')return;const osc=audio.createOscillator(),gain=audio.createGain(),now=audio.currentTime;osc.type='sine';osc.frequency.setValueAtTime(frequency,now);gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.12,now+.03);gain.gain.exponentialRampToValueAtTime(.001,now+1.5);osc.connect(gain).connect(master);osc.start();osc.stop(now+1.6); }
 $('#sound').addEventListener('click',async()=>{
@@ -70,7 +116,28 @@ $('#help').addEventListener('click',()=>$('#help-dialog').showModal());
 $('#close-help').addEventListener('click',()=>$('#help-dialog').close());
 $('#start-garden').addEventListener('click',()=>$('#help-dialog').close());
 document.addEventListener('keydown',e=>{if($('#help-dialog').open||e.ctrlKey||e.metaKey||e.altKey||['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;const next={'1':'seed','2':'water','3':'remove'}[e.key];if(next)selectTool(next);});
-function tick() {const arrivals=discover(state);if(arrivals.length){currentCat=arrivals.at(-1).id;save();renderCats();toast(`${arrivals.map(c=>c.name).join(', ')}가 정원에 찾아왔어요! 살짝 쓰다듬어 볼까요?`);chime(659.25);}renderPlots();}
-function frame(t) {if(!document.hidden&&t-lastPaint>(reducedMotion.matches?250:32)){particles=particles.filter(p=>t-p.time<1200);paint(state,reducedMotion.matches?0:t,moving,currentCat,petUntil,particles);lastPaint=t;}requestAnimationFrame(frame);}
+function tick() {const arrivals=discover(state);if(arrivals.length){save();renderCats();toast(`${arrivals.map(c=>c.name).join(', ')}가 정원에 찾아왔어요! 살짝 쓰다듬어 볼까요?`);chime(659.25);}renderPlots();renderPond();}
+function frame(t) {
+  if (!document.hidden && t - lastPaint > (reducedMotion.matches ? 250 : 32)) {
+    particles = particles.filter(p => t - p.time < 1200);
+    const cats = state.discovered.map(id => {
+      const pet = petStates.get(id);
+      const petting = t < (pet?.until || 0);
+      const pose = petting ? { ...pet.pose, sleeping: false, walking: false } : catPose(id, reducedMotion.matches ? 0 : t);
+      lastCatPoses.set(id, pose);
+      const button = catButtons.get(id);
+      button.style.left = `${(pose.x - 46) / WORLD.width * 100}%`;
+      button.style.top = `${(pose.y - 48) / WORLD.height * 100}%`;
+      return { id, ...pose, petting };
+    });
+    paint(state, reducedMotion.matches ? 0 : t, cats, particles, t);
+    lastPaint = t;
+  }
+  requestAnimationFrame(frame);
+}
+Object.assign($('#plots').style, {
+  left: `${BED.x / WORLD.width * 100}%`, top: `${BED.y / WORLD.height * 100}%`,
+  width: `${BED.width / WORLD.width * 100}%`, height: `${BED.height / WORLD.height * 100}%`,
+});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
 renderSeeds();renderCats();tick();setInterval(tick,1000);requestAnimationFrame(frame);

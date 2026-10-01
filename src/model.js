@@ -1,3 +1,6 @@
+import { PLOT_COUNT } from './layout.js';
+export { PLOT_COUNT } from './layout.js';
+export const FEED_INTERVAL = 10000;
 export const FLOWERS = [
   { id: 'daisy', name: '데이지', description: '작은 햇살을 닮은 꽃', color: '#fff8e7', center: '#d9ae47', seconds: 30 },
   { id: 'tulip', name: '튤립', description: '포근한 마음 한 송이', color: '#dd8e83', center: '#be6e66', seconds: 40 },
@@ -8,19 +11,29 @@ export const CATS = [
   { id: 'peach', name: '모모', flower: 'tulip', color: '#cb9371', description: '꽃향기를 따라 찾아왔어요' },
   { id: 'night', name: '밤이', flower: 'lavender', color: '#777580', description: '조용히 곁을 지켜주는 친구' },
 ];
-export const freshState = () => ({ version: 1, plots: Array(12).fill(null), discovered: [], pets: 0 });
+export const freshState = () => ({ version: 2, plots: Array(PLOT_COUNT).fill(null), discovered: [], pets: 0, pond: { feedings: 0, lastFedAt: null } });
 export function restoreState(raw, now = Date.now()) {
   try {
     const value = JSON.parse(raw);
-    if (value?.version !== 1 || !Array.isArray(value.plots) || value.plots.length !== 12) return freshState();
-    return {
-      version: 1,
-      plots: value.plots.map(p => p && FLOWERS.some(f => f.id === p.flower) ? {
+    if (![1, 2].includes(value?.version) || !Array.isArray(value.plots) || value.plots.length !== (value.version === 1 ? 12 : PLOT_COUNT)) return freshState();
+    const plots = Array(PLOT_COUNT).fill(null);
+    value.plots.forEach((p, i) => {
+      // Preserve the old four-column arrangement in the enlarged six-column bed.
+      const target = value.version === 1 ? Math.floor(i / 4) * 6 + i % 4 : i;
+      plots[target] = p && FLOWERS.some(f => f.id === p.flower) ? {
         flower: p.flower,
         wateredAt: Number.isFinite(p.wateredAt) && p.wateredAt >= 0 ? Math.min(p.wateredAt, now) : null,
-      } : null),
+      } : null;
+    });
+    return {
+      version: 2,
+      plots,
       discovered: CATS.filter(c => Array.isArray(value.discovered) && value.discovered.includes(c.id)).map(c => c.id),
       pets: Number.isSafeInteger(value.pets) && value.pets >= 0 ? value.pets : 0,
+      pond: {
+        feedings: Number.isSafeInteger(value.pond?.feedings) && value.pond.feedings >= 0 ? value.pond.feedings : 0,
+        lastFedAt: Number.isFinite(value.pond?.lastFedAt) && value.pond.lastFedAt >= 0 ? Math.min(value.pond.lastFedAt, now) : null,
+      },
     };
   } catch { return freshState(); }
 }
@@ -30,7 +43,7 @@ export function progress(plot, now = Date.now()) {
   return Math.max(0, Math.min(1, (now - plot.wateredAt) / (flower.seconds * 1000)));
 }
 export function plant(state, index, flower) {
-  if (!Number.isInteger(index) || index < 0 || index >= 12 || state.plots[index] || !FLOWERS.some(f => f.id === flower)) return false;
+  if (!Number.isInteger(index) || index < 0 || index >= PLOT_COUNT || state.plots[index] || !FLOWERS.some(f => f.id === flower)) return false;
   state.plots[index] = { flower, wateredAt: null };
   return true;
 }
@@ -40,7 +53,7 @@ export function water(state, index, now = Date.now()) {
   return true;
 }
 export function move(state, from, to) {
-  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || from >= 12 || to < 0 || to >= 12 || !state.plots[from] || state.plots[to]) return false;
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || from >= PLOT_COUNT || to < 0 || to >= PLOT_COUNT || !state.plots[from] || state.plots[to]) return false;
   state.plots[to] = state.plots[from];
   state.plots[from] = null;
   return true;
@@ -50,4 +63,15 @@ export function discover(state, now = Date.now()) {
   const arrivals = CATS.filter(c => flowers.has(c.flower) && !state.discovered.includes(c.id));
   state.discovered.push(...arrivals.map(c => c.id));
   return arrivals;
+}
+
+export function feedCooldown(state, now = Date.now()) {
+  return state.pond.lastFedAt === null ? 0 : Math.max(0, FEED_INTERVAL - (now - state.pond.lastFedAt));
+}
+
+export function feedFish(state, now = Date.now()) {
+  if (feedCooldown(state, now) > 0) return false;
+  state.pond.lastFedAt = now;
+  state.pond.feedings += 1;
+  return true;
 }
