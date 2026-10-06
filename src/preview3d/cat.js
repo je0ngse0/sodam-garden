@@ -1,5 +1,6 @@
 import * as THREE from '../../vendor/three/three.module.js';
 import { pawStep, damp } from './motion.js';
+import { shortFur } from './fur.js';
 
 // Original procedural model: all meshes, markings and joints are made here.
 export function createCat() {
@@ -8,8 +9,8 @@ export function createCat() {
   const torso = new THREE.Group();
   root.add(torso);
   const sphere = new THREE.SphereGeometry(1, 32, 24);
-  const fur = new THREE.MeshStandardMaterial({ color: '#eac891', roughness: .92 });
-  const pale = new THREE.MeshStandardMaterial({ color: '#fff0d0', roughness: .98 });
+  const fur = shortFur('#eac891');
+  const pale = shortFur('#fff0d0');
   const pink = new THREE.MeshStandardMaterial({ color: '#dba49b', roughness: .85 });
   const noseMat = new THREE.MeshStandardMaterial({ color: '#b97e78', roughness: .7 });
   const eyeMat = new THREE.MeshStandardMaterial({ color: '#302f28', roughness: .27 });
