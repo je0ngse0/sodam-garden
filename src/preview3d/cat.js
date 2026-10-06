@@ -10,7 +10,6 @@ export function createCat() {
   const sphere = new THREE.SphereGeometry(1, 32, 24);
   const fur = new THREE.MeshStandardMaterial({ color: '#eac891', roughness: .92 });
   const pale = new THREE.MeshStandardMaterial({ color: '#fff0d0', roughness: .98 });
-  const warm = new THREE.MeshStandardMaterial({ color: '#d4a367', roughness: .93 });
   const pink = new THREE.MeshStandardMaterial({ color: '#dba49b', roughness: .85 });
   const noseMat = new THREE.MeshStandardMaterial({ color: '#b97e78', roughness: .7 });
   const eyeMat = new THREE.MeshStandardMaterial({ color: '#302f28', roughness: .27 });
@@ -29,8 +28,7 @@ export function createCat() {
   const body = ellipsoid(torso, fur, [0,.87,-.17], [.49,.49,.82]);
   ellipsoid(torso, fur, [0,.84,.39], [.4,.47,.4]);
   ellipsoid(torso, pale, [0,.83,.57], [.3,.39,.19]);
-  // Slightly tucked haunches connect visually to the hind legs.
-  for(const side of [-1,1]) ellipsoid(torso, fur, [side*.32,.64,-.64], [.25,.35,.32]);
+  // The thighs emerge from inside the torso, without separate ball-shaped hips.
   const head = new THREE.Group();head.position.set(0,1.36,.65);torso.add(head);
   ellipsoid(head, fur, [0,0,0], [.54,.47,.45]);
   ellipsoid(head, pale, [0,-.22,.14], [.43,.24,.32]);
@@ -65,29 +63,47 @@ export function createCat() {
   curve(head,[[0,-.182,.526],[0,-.21,.526],[-.035,-.23,.514],[-.075,-.215,.5]],.009,mouthMat);
   curve(head,[[0,-.21,.526],[.035,-.23,.514],[.075,-.215,.5]],.009,mouthMat);
 
+  // Continuous tapered surfaces replace overlapping joint ellipsoids.
+  // Parallel-transport frames avoid the old tail's sudden twist at vertical tangents.
+  function sweep(name, count, radiusAt) {
+    const points=Array.from({length:count},(_,i)=>new THREE.Vector3(0,i*.2,0));
+    const path=new THREE.CatmullRomCurve3(points);
+    const segments=40,sides=16;
+    const geometry=new THREE.TubeGeometry(path,segments,.1,sides,false);
+    const mesh=new THREE.Mesh(geometry,fur);mesh.name=name;
+    mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
+    const point=new THREE.Vector3();
+    function set(coords) {
+      points.forEach((p,i)=>p.set(...coords[i]));path.updateArcLengths();
+      const frames=path.computeFrenetFrames(segments,false);
+      const positions=geometry.attributes.position;
+      for(let i=0;i<=segments;i++) {
+        const u=i/segments;path.getPointAt(u,point);
+        const normal=frames.normals[i],binormal=frames.binormals[i],r=radiusAt(u);
+        for(let j=0;j<=sides;j++) {
+          const a=j/sides*Math.PI*2,c=-Math.cos(a),sn=Math.sin(a);
+          positions.setXYZ(i*(sides+1)+j,point.x+r*(normal.x*c+binormal.x*sn),point.y+r*(normal.y*c+binormal.y*sn),point.z+r*(normal.z*c+binormal.z*sn));
+        }
+      }
+      positions.needsUpdate=true;geometry.computeVertexNormals();geometry.computeBoundingSphere();
+    }
+    return {set};
+  }
   const legs=[];
   for(const front of [false,true]) for(const side of [-1,1]) {
-    const x=side*(front?.285:.33), z=front?.49:-.65;
-    const upper=ellipsoid(root,fur,[x,.5,z],[.15,.3,.15]);
-    const lower=ellipsoid(root,fur,[x,.3,z],[.11,.25,.11]);
-    const paw=ellipsoid(root,pale,[x,.11,z+.06],[.145,.12,.21]);
-    legs.push({front,side,x,z,upper,lower,paw,offset:front?(side===1?.75:.25):(side===1?0:.5)});
+    const x=side*(front?.255:.265),z=front?.49:-.58;
+    const limb=sweep(`${front?'foreleg':'hindleg'}-${side}`,5,u=>{
+      // Muscular upper leg, narrower wrist/hock, soft overlap with the paw.
+      return front?.075+.095*Math.pow(1-u,2):.078+.16*Math.pow(1-u,2.3);
+    });
+    const paw=ellipsoid(root,pale,[x,.105,z+.06],[.125,.105,.185]);
+    legs.push({front,side,x,z,limb,paw,offset:front?(side===1?.75:.25):(side===1?0:.5)});
   }
-  const from = new THREE.Vector3(), to = new THREE.Vector3(), up = new THREE.Vector3(0,1,0), delta=new THREE.Vector3();
-  function bone(mesh,a,b,radius) {
-    from.set(...a);to.set(...b);delta.subVectors(to,from);
-    mesh.position.copy(from).add(to).multiplyScalar(.5);
-    mesh.quaternion.setFromUnitVectors(up,delta.clone().normalize());
-    mesh.scale.set(radius,delta.length()*.5+radius*.45,radius);
-  }
-  // One continuous tube avoids a chain-of-balls tail silhouette.
-  const tailPoints=Array.from({length:5},()=>new THREE.Vector3());
-  const tailPath=new THREE.CatmullRomCurve3(tailPoints);
-  tailPoints.forEach((p,i)=>p.set(0,.9+i*.2,-.85-i*.15));
-  const tailGeo=new THREE.TubeGeometry(tailPath,28,.11,10,false);
-  const tail=new THREE.Mesh(tailGeo,fur);tail.castShadow=true;tail.receiveShadow=true;root.add(tail);
-  const tailTip=ellipsoid(root,pale,[0,1.6,-1.2],[.07,.07,.07]);
-  const tangent=new THREE.Vector3(), normal=new THREE.Vector3(), binormal=new THREE.Vector3(), point=new THREE.Vector3();
+  const tail=sweep('tail',6,u=>{
+    // Close the rounded tip as part of the same mesh, rather than attaching a ball.
+    const taper=.135*Math.pow(1-u,.65);
+    return Math.max(.0005,taper);
+  });
   let rest=1;
   function update(time,dt,{distance=0,walking=false,petting=false}={}) {
     rest=damp(rest,walking?0:1,5,dt);
@@ -99,39 +115,35 @@ export function createCat() {
     ears.forEach((ear,i)=>{ear.rotation.z=(i===0?1:-1)*.18+Math.sin(time*1.1+i)*.018;});
     const blink=petting?.13:(Math.sin(time*.71)>.991?.1:1);
     eyes.forEach(eye=>eye.scale.y=.087*blink);
+    const weightShift=Math.sin(distance/.64*Math.PI*2)*(1-rest)*.014;
+    torso.rotation.z=weightShift;
     legs.forEach(leg=>{
       const step=pawStep(distance,leg.offset);
-      const z=leg.z+step.z*(1-rest), y=.11+step.y*(1-rest)-rest*.015;
-      const hipY=(leg.front?.82:.71)-rest*.33+bob;
-      const footZ=z+.055+rest*(leg.front?-.07:.21);
-      // Hock folds rearward, foreleg bends gently toward the chest.
-      const kneeZ=(leg.z+footZ)*.5+(leg.front?-.06:.13)*(1-rest);
-      const kneeY=(hipY+y)*.52;
-      bone(leg.upper,[leg.x,hipY,leg.z],[leg.x,kneeY,kneeZ],leg.front?.13:.17);
-      bone(leg.lower,[leg.x,kneeY,kneeZ],[leg.x,y,footZ],.095);
-      leg.paw.position.set(leg.x,y,footZ+.035);
-      leg.paw.scale.y=.12-rest*.025;
+      const y=.105+step.y*(1-rest);
+      const footZ=leg.z+step.z*(1-rest)+.075+rest*(leg.front?-.04:.22);
+      const hipY=(leg.front?.89:.87)-rest*.33+bob;
+      const hipX=leg.x+weightShift*(leg.front?1:-1);
+      // Hind knee points forward; hock folds back above the weight-bearing paw.
+      const kneeZ=leg.z+(leg.front?-.025:.18)*(1-rest)+rest*.1;
+      const hockZ=footZ-(leg.front?.025:.12)*(1-rest);
+      leg.limb.set([
+        [hipX,hipY,leg.z],
+        [leg.x,(hipY+y)*.68,kneeZ],
+        [leg.x,(hipY+y)*.43,hockZ],
+        [leg.x,y+.07,footZ-.025],
+        [leg.x,y,footZ+.035],
+      ]);
+      leg.paw.position.set(leg.x,y,footZ+.055);
+      leg.paw.rotation.x=-(step.y/.13)*.16*(1-rest);
     });
-    const sway=Math.sin(time*1.5)*.13;
-    const standing=[[0,.91,-.84],[.05,.98,-1.17],[.13+sway,1.43,-1.48],[.12+sway,1.88,-1.52],[.03+sway,1.97,-1.33]];
-    const curled=[[0,.59,-.83],[-.34,.34,-1.05],[-.65,.23,-.7],[-.67,.2,-.08],[-.47,.21,.13]];
-    tailPoints.forEach((p,i)=>p.set(...standing[i]).lerp(new THREE.Vector3(...curled[i]),rest));
-    tailPath.updateArcLengths();
-    const positions=tailGeo.attributes.position;
-    for(let i=0;i<=28;i++) {
-      const u=i/28;
-      tailPath.getPointAt(u,point);tailPath.getTangentAt(u,tangent).normalize();
-      normal.crossVectors(tangent,up);
-      if(normal.lengthSq()<.0001)normal.set(1,0,0);else normal.normalize();
-      binormal.crossVectors(tangent,normal).normalize();
-      const radius=.115*(1-u*.45);
-      for(let j=0;j<=10;j++) {
-        const a=j/10*Math.PI*2,idx=i*11+j;
-        positions.setXYZ(idx,point.x+radius*(-normal.x*Math.cos(a)+binormal.x*Math.sin(a)),point.y+radius*(-normal.y*Math.cos(a)+binormal.y*Math.sin(a)),point.z+radius*(-normal.z*Math.cos(a)+binormal.z*Math.sin(a)));
-      }
-    }
-    positions.needsUpdate=true;tailGeo.computeVertexNormals();tailGeo.computeBoundingSphere();
-    tailTip.position.copy(tailPoints[4]);
+    // A quiet wave travels out toward the tip; the root stays anchored in the rump.
+    const standing=[[0,1.03+bob,-.81],[.025,1.05+bob,-1.04],[.06,1.26,-1.28],[.10,1.62,-1.43],[.12,1.89,-1.38],[.08,1.97,-1.19]];
+    const curled=[[0,.70,-.8],[-.19,.43,-1.04],[-.49,.24,-1.06],[-.66,.20,-.72],[-.67,.19,-.3],[-.49,.18,-.09]];
+    const coords=standing.map((p,i)=>{
+      const u=i/5,wave=Math.sin(time*1.7-u*2.2)*.11*u*u;
+      return [p[0]*(1-rest)+curled[i][0]*rest+wave*(1-rest*.7),p[1]*(1-rest)+curled[i][1]*rest,p[2]*(1-rest)+curled[i][2]*rest];
+    });
+    tail.set(coords);
   }
   update(0,0);
   return {root,update};
