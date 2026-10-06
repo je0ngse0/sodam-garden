@@ -24,6 +24,9 @@ export function catPose(id, time) {
   return {
     x: route.x - route.travel * Math.cos(walk * Math.PI * 2),
     y: route.y + (sleeping ? 0 : Math.sin(walk * Math.PI) * 6),
+    // Arc length along the horizontal route keeps steps tied to ground travel.
+    gaitPhase: (walk < .5 ? route.travel * (1 - Math.cos(walk * Math.PI * 2))
+      : route.travel * (3 + Math.cos(walk * Math.PI * 2))) / 28 * Math.PI * 2,
     sleeping,
     walking: !sleeping,
     direction: walk < 0.5 ? 1 : -1,

@@ -16,41 +16,91 @@ export function createCharacters(ctx) {
     ctx.save();ctx.translate(x,y);ctx.scale(1,ry/rx);const g=ctx.createRadialGradient(0,0,1,0,0,rx);g.addColorStop(0,'#28392246');g.addColorStop(1,'#28392200');oval(0,0,rx,rx,g);ctx.restore();
   }
   function drawCat(c, palette, t) {
-    ctx.save();ctx.translate(c.x,c.y);shadow(0,2,48,11);
-    const colors={cream:['#f5e2be','#c5ab82'],peach:['#dfa774','#9e6946'],night:['#929297','#444950']}[c.id];
-    const fur=shade(-8,-24,51,...colors);
-    if(c.sleeping) {
-      oval(0,-11,35,19,fur);oval(-22,-16,17,14,shade(-25,-20,24,...colors));
-      shape([[-36,-23],[-35,-40],[-22,-29]],colors[1]);shape([[-22,-29],[-10,-37],[-9,-20]],colors[1]);
-      path([[-32,-16],[-27,-13],[-22,-16]],'#534c43',1.2);
-      ctx.beginPath();ctx.ellipse(5,-12,24,14,.2,-1,2.5);ctx.strokeStyle=colors[0];ctx.lineWidth=8;ctx.stroke();
-      ctx.fillStyle='#637259';ctx.font='italic 12px Georgia';ctx.fillText('z z',7,-41-Math.sin(t/1600)*2);
-      ctx.restore();return;
-    }
-    ctx.scale(c.direction,1);
-    const phase=t/170, stride=c.walking?1:0;
-    const leg=(x,offset,far)=>{
-      const a=Math.sin(phase+offset)*stride;
-      const hipY=-25;
-      const kneeX=x+a*6, kneeY=-13-Math.max(0,a)*3;
-      const footX=x+a*11,footY=-Math.max(0,a)*5;
-      path([[x,hipY],[kneeX,kneeY],[footX,footY]],far?colors[1]:colors[0],far?6:7);
-      oval(footX+3,footY,6,3,far?colors[1]:colors[0]);
+    // A softly lit, three-quarter face on a low, rounded four-legged body.
+    const coats = {
+      cream: { light:'#fff1cf', base:'#e6c793', dark:'#bc9563', bib:'#fff7df', stripe:'#c49a60' },
+      peach: { light:'#f7ce92', base:'#dca268', dark:'#ae764d', bib:'#fff0d2', stripe:'#b77b49' },
+      night: { light:'#a5a9b6', base:'#747c8e', dark:'#505969', bib:'#d9d9da', stripe:'#505b70' },
     };
-    leg(-23,Math.PI,true);leg(20,0,true);
-    const bob=c.walking?Math.sin(phase*2)*1.1:0;
-    ctx.save();ctx.translate(0,bob);
-    ctx.beginPath();ctx.moveTo(-34,-30);ctx.bezierCurveTo(-54,-39,-57,-68,-45,-62+Math.sin(t/700)*4);ctx.strokeStyle=colors[1];ctx.lineWidth=7;ctx.lineCap='round';ctx.stroke();
-    oval(-5,-29,35,16,fur,-.03);oval(-26,-26,14,17,fur);oval(24,-34,13,17,fur,-.2);
-    oval(34,-47,16,14,shade(31,-52,22,...colors));
-    shape([[22,-54],[23,-72],[34,-60]],colors[1]);shape([[35,-59],[46,-70],[46,-50]],colors[1]);
-    shape([[25,-57],[26,-66],[31,-59]],'#c6978b');shape([[38,-59],[43,-65],[43,-54]],'#c6978b');
-    oval(46,-43,9,6,c.id==='night'?'#b4afb0':'#eee0c8');oval(53,-45,2.5,2,'#87615d');
-    oval(40,-51,3,3,'#c6cf93');oval(41,-51,1.1,2.5,'#313a30');oval(40,-52,1,1,'#fffbea');
-    path([[46,-40],[55,-38]],'#80796c',.7);path([[44,-41],[58,-44]],'#80796c',.7);
-    for(let i=0;i<5;i++)path([[-22+i*9,-39],[-18+i*9,-30]],c.id==='night'?'#484d5555':'#95765444',2);
-    ctx.restore();leg(-20,0,false);leg(22,Math.PI,false);
-    if(c.petting){ctx.scale(c.direction,1);ctx.fillStyle='#bf7b7a';ctx.font='20px Georgia';ctx.fillText('♥',-3,-80);}
+    const coat=coats[c.id] || coats.cream;
+    const fur=(x,y,r)=>shade(x,y,r,coat.light,coat.base);
+    const ink=c.id==='night'?'#303b4b':'#625044';
+    ctx.save();ctx.translate(c.x,c.y);shadow(0,3,46,10);
+    ctx.scale(c.direction || 1,1);
+
+    function face(x,y,sleeping) {
+      // Ears sit behind the broad cheeks; the nose stays within the face.
+      shape([[x-19,y-7],[x-18,y-30],[x-3,y-18]],coat.base);
+      shape([[x+4,y-19],[x+20,y-29],[x+21,y-4]],coat.base);
+      shape([[x-15,y-12],[x-15,y-24],[x-7,y-17]],'#dba69a');
+      shape([[x+10,y-17],[x+17,y-23],[x+17,y-10]],'#dba69a');
+      oval(x,y,24,21,fur(x-3,y-5,31));
+      oval(x+2,y+9,16,10,coat.bib);
+      for(const eye of [-8,12]) {
+        if(sleeping || c.petting) {
+          ctx.beginPath();ctx.moveTo(x+eye-4,y+1);
+          ctx.quadraticCurveTo(x+eye,y+(sleeping?5:-4),x+eye+4,y+1);
+          ctx.strokeStyle=ink;ctx.lineWidth=1.8;ctx.lineCap='round';ctx.stroke();
+        } else {
+          oval(x+eye,y,2.8,4,ink);
+          oval(x+eye-.7,y-1.4,.9,1.2,'#fffbea');
+        }
+      }
+      oval(x-14,y+7,4,2,'#dd9f8e44');oval(x+17,y+7,3,2,'#dd9f8e44');
+      shape([[x-1,y+7],[x+6,y+7],[x+2.5,y+10]],'#b77f78');
+      path([[x+2.5,y+10],[x+2.5,y+13],[x-1,y+14]],ink,.9);
+      path([[x+2.5,y+13],[x+6,y+14]],ink,.9);
+      path([[x-12,y+10],[x-26,y+8]],coat.dark,.7);
+      path([[x+16,y+10],[x+28,y+8]],coat.dark,.7);
+      if(c.id!=='cream') for(const dx of [-6,1,8])
+        path([[x+dx,y-17],[x+dx-1,y-12]],coat.stripe,2.6);
+    }
+
+    if(c.sleeping) {
+      const breath=Math.sin(t/1500)*.5;
+      oval(-2,-15,35,23+breath,fur(-9,-22,45));
+      oval(17,-4,13,5,coat.bib);
+      face(20,-21,true);
+      ctx.beginPath();ctx.moveTo(-29,-22);
+      ctx.bezierCurveTo(-49,1,-17,10,5,-2);
+      ctx.strokeStyle=coat.base;ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-30,-20);ctx.bezierCurveTo(-41,-1,-19,5,-4,0);
+      ctx.strokeStyle=coat.light;ctx.lineWidth=4;ctx.stroke();
+    } else {
+      // Distance, not elapsed time, drives the gait so paws slow at turns.
+      const phase=c.gaitPhase ?? t/230;
+      const stride=c.walking?1:0;
+      const bob=Math.cos(phase*2)*.6*stride;
+      function leg(x,offset,far) {
+        const cycle=((phase/(Math.PI*2)+offset)%1+1)%1;
+        // A long planted stance and a shorter, lifted return step.
+        const stance=cycle<.64;
+        const f=stance?cycle/.64:(cycle-.64)/.36;
+        const swing=(stance?1-2*f:-Math.cos(f*Math.PI))*7*stride;
+        const lift=stance?0:Math.sin(f*Math.PI)*5*stride;
+        const y=(far?-3:0)-lift;
+        path([[x,-23+bob],[x+swing*.35,-12],[x+swing,y-3]],far?coat.dark:coat.base,far?8:10);
+        oval(x+swing+2,y-2,7,4,far?coat.base:coat.bib);
+      }
+      // Tail, far legs, body, near legs, then head give clear depth ordering.
+      ctx.beginPath();ctx.moveTo(-28,-28);
+      ctx.bezierCurveTo(-48,-27,-50,-48,-44,-51+Math.sin(t/950)*3);
+      ctx.strokeStyle=coat.base;ctx.lineWidth=10;ctx.lineCap='round';ctx.stroke();
+      leg(-22,.25,true);leg(21,.75,true);
+      oval(-4,-27+bob,34,22,fur(-12,-34,45));
+      oval(21,-23+bob,14,18,coat.bib);
+      if(c.id!=='cream') for(let i=0;i<3;i++) {
+        ctx.beginPath();ctx.moveTo(-24+i*10,-44+bob);
+        ctx.quadraticCurveTo(-28+i*10,-38+bob,-23+i*10,-33+bob);
+        ctx.strokeStyle=coat.stripe;ctx.lineWidth=3;ctx.lineCap='round';ctx.stroke();
+      }
+      leg(-23,0,false);leg(22,.5,false);
+      face(26,-43+bob,false);
+    }
+    ctx.scale(c.direction || 1,1);
+    if(c.petting) {
+      ctx.fillStyle='#c7807d';ctx.font='18px Georgia';ctx.fillText('♥',9,-82);
+    }
     ctx.restore();
   }
   function drawWoman(w,t,bouquet) {

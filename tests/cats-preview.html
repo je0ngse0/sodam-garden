@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>소담정원 · 고양이 미리보기</title>
+<style>body{margin:0;background:#faf6e9;color:#5b654d;font:15px system-ui}main{max-width:960px;margin:32px auto;padding:20px}h1{font-size:24px}p{line-height:1.8}canvas{width:100%;border-radius:24px;background:#bacb91}button{padding:10px 18px;border:1px solid #bdc5a7;border-radius:16px;background:#fff9e7;color:inherit;margin-bottom:18px}</style>
+<main><h1>소담정원 · 세 고양이</h1><p>크림이 · 모모 · 밤이 — 걷기 / 낮잠 / 쓰다듬기<br>저장 공간을 사용하지 않는 그래픽 미리보기입니다.</p><button id="pause">움직임 멈추기</button><canvas width="960" height="660" aria-label="세 고양이의 걷기, 낮잠, 쓰다듬기 모습"></canvas></main>
+<script type="module">
+import {createCharacters} from '../src/characters.js';
+const ctx=document.querySelector('canvas').getContext('2d');
+const {drawCat}=createCharacters(ctx);let running=true,time=0,last=0;
+document.querySelector('button').onclick=e=>{running=!running;e.target.textContent=running?'움직임 멈추기':'움직임 재생';};
+function frame(t){if(running)time+=Math.min(t-last,50);last=t;ctx.clearRect(0,0,960,660);
+['크림이','모모','밤이'].forEach((name,i)=>{ctx.fillStyle='#536449';ctx.font='16px system-ui';ctx.fillText(name,135+i*320,38);});
+['cream','peach','night'].forEach((id,i)=>{for(let row=0;row<3;row++){ctx.save();ctx.translate(150+i*320,175+row*215);ctx.scale(2,2);drawCat({id,x:0,y:0,direction:row===1?-1:1,walking:row===0,sleeping:row===1,petting:row===2},null,time);ctx.restore();}});requestAnimationFrame(frame);}requestAnimationFrame(frame);
+</script></html>
