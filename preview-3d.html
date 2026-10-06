@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f2e8">
+  <title>크림이의 작은 오후 · 소담정원 3D</title>
+  <link rel="stylesheet" href="src/preview3d/style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="소담정원으로 돌아가기"><span class="brand-icon" aria-hidden="true">❋</span> 소담정원 <span class="brand-sub">SODAM GARDEN</span></a>
+    <a class="back" href="/">정원으로 돌아가기 <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div><p class="eyebrow">A LITTLE AFTERNOON · 01</p><h1 id="title">크림이의 작은 오후<span>.</span></h1><p class="subtitle">보드라운 풀밭, 따스한 햇빛. 잠시 쉬어 가도 괜찮아요.</p></div>
+      <span class="preview-badge"><i></i> 3D 미리보기</span>
+    </section>
+    <section class="garden" aria-label="크림이의 3D 정원">
+      <div id="viewport" tabindex="0" role="region" aria-label="3D 정원. 드래그 또는 방향키로 회전, 더하기와 빼기로 확대와 축소" aria-describedby="view-help">
+        <div id="loading" role="status">작은 오후를 준비하고 있어요…</div>
+        <noscript>3D 정원을 보려면 JavaScript를 켜 주세요.</noscript>
+      </div>
+      <div class="scene-heading"><span class="sun" aria-hidden="true">☼</span><div><strong id="weather-label">햇살 좋은 오후</strong><span>서두를 일 없는 작은 정원</span></div></div>
+      <div class="scene-label"><span class="live-dot"></span><span id="activity" role="status">크림이가 쉬고 있어요</span></div>
+      <div class="view-tools" aria-label="시점 조절"><button id="zoom-in" aria-label="가까이 보기">＋</button><button id="zoom-out" aria-label="멀리 보기">−</button><button id="reset-view" aria-label="처음 시점으로 돌아가기">↺</button></div>
+      <p class="view-help" id="view-help">드래그로 둘러보기 <span>·</span> 스크롤로 가까이 보기</p>
+      <span id="heart" aria-hidden="true">♥</span>
+    </section>
+    <section class="companion" aria-label="크림이와 함께하기">
+      <div class="cat-info"><div class="cat-mark" aria-hidden="true">🐾</div><div><h2>크림이 <span>CREAM</span></h2><p>햇살 닮은, 느긋한 친구</p></div></div>
+      <div class="actions" aria-label="크림이의 행동">
+        <button type="button" data-mode="rest" aria-pressed="true"><span aria-hidden="true">☁</span> 쉬기</button>
+        <button type="button" data-mode="walk" aria-pressed="false"><span aria-hidden="true">♧</span> 산책</button>
+        <button type="button" id="pet"><span aria-hidden="true">♡</span> 쓰다듬기</button>
+      </div>
+      <label class="light-toggle"><input type="checkbox" id="golden"><span class="toggle-track" aria-hidden="true"></span> 노을빛</label>
+    </section>
+    <footer><span>작은 것들이 주는, 충분한 행복.</span><p>별도 체험 공간이에요. 기존 정원 기록은 그대로 보관됩니다.</p><button id="motion" aria-pressed="false">움직임 멈추기</button></footer>
+  </main>
+  <script type="module">
+    import('./src/preview3d/main.js').catch(error => {
+      console.error(error);
+      const loading=document.querySelector('#loading');
+      loading.hidden=false;
+      loading.textContent='3D 화면을 열지 못했어요. WebGL 2를 지원하는 브라우저에서 새로고침해 주세요. 기존 정원은 그대로예요.';
+    });
+  </script>
+</body>
+</html>
